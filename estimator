@@ -1,0 +1,63 @@
+## Sample Data --> y_true = (0.75 * x_data) + 5 + noise
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+import tensorflow as tf
+
+
+# สร้าง dummy data
+x_data = np.linspace(0.0,10.0,1000000).astype(np.float32)
+noise = np.random.randn(len(x_data))
+y_true = ((0.75 * x_data) + 5 + noise).astype(np.float32)
+my_data = pd.concat([pd.DataFrame(data=x_data,columns=['X_Data']),pd.DataFrame(data=y_true,columns=['Y'])],axis=1)
+
+#my_data.sample(n=250).plot(kind='scatter',x='X_Data',y='Y')
+
+X_train = my_data.drop(columns='Y')
+y_train = my_data.drop(columns='X_Data')
+
+## convert numerical data to feature columns
+numeric_features = [tf.feature_column.numeric_column(key="X_Data")]
+#print(numeric_features[0])
+
+##create training input function
+#############################################
+def train_input_fn(features, labels, epochs, shuffle=True, batch_size = 32):
+    def input_function():
+        dataset = tf.data.Dataset.from_tensor_slices((dict(features), labels))
+        if shuffle:
+            dataset.shuffle(100)
+        dataset = dataset.batch(batch_size).repeat(epochs)
+        return dataset
+    return input_function
+
+def eval_input_fn(features, labels = None, batch_size = 32):
+    def input_function():
+        input_features = dict(features)
+        if labels is None:
+            inputs = input_features 
+        else:
+            inputs = (input_features, labels)
+        
+        dataset = tf.data.Dataset.from_tensor_slices(inputs)
+        dataset = dataset.batch(batch_size)
+        return dataset
+    return input_function
+##############################################   
+train_input_fn = train_input_fn(X_train, y_train, epochs=None)  
+LinearReg = tf.estimator.LinearRegressor(feature_columns=numeric_features)
+LinearReg.train(train_input_fn, steps=20000)
+  
+#Plot data
+x_plot = np.linspace(0.0,10.0,10).astype(np.float32)
+x_plot = pd.DataFrame(data=x_plot,columns=['X_Data'])
+plot_input_fn = eval_input_fn(x_plot)
+pred = list(LinearReg.predict(input_fn = plot_input_fn ))
+#my_data.sample(n=250).plot(kind='scatter',x='X_Data',y='Y')
+#plt.plot(x_plot, pred, color='red', label='y_pred')
+
+  
+  
